@@ -9,6 +9,7 @@ var port = process.env.PORT || 8080;
 // use originWhitelist instead.
 var originBlacklist = parseEnvList(process.env.CORSANYWHERE_BLACKLIST);
 var originWhitelist = parseEnvList(process.env.CORSANYWHERE_WHITELIST);
+
 function parseEnvList(env) {
   if (!env) {
     return [];
@@ -20,10 +21,13 @@ function parseEnvList(env) {
 var checkRateLimit = require('./lib/rate-limit')(process.env.CORSANYWHERE_RATELIMIT);
 
 var cors_proxy = require('./lib/cors-anywhere');
+
+// Modify the server to not require specific headers
 cors_proxy.createServer({
   originBlacklist: originBlacklist,
   originWhitelist: originWhitelist,
-  requireHeader: ['origin', 'x-requested-with'],
+  // Remove the requireHeader option to not require specific headers
+  requireHeader: [], // No headers required
   checkRateLimit: checkRateLimit,
   removeHeaders: [
     'cookie',
@@ -44,6 +48,15 @@ cors_proxy.createServer({
     // Do not add X-Forwarded-For, etc. headers, because Heroku already adds it.
     xfwd: false,
   },
+  // Optionally, you can define a custom middleware to extract URL from query parameters
+  handleRequest: (req, res, next) => {
+    // Extract the URL from the `url` query parameter
+    if (req.url && req.url.startsWith('/')) {
+      // Remove leading '/'
+      req.url = req.url.substring(1);
+    }
+    next();
+  }
 }).listen(port, host, function() {
   console.log('Running CORS Anywhere on ' + host + ':' + port);
 });
